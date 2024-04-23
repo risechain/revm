@@ -168,7 +168,11 @@ impl<ExtDB> DatabaseCommit for CacheDB<ExtDB> {
 impl<ExtDB: DatabaseRef> Database for CacheDB<ExtDB> {
     type Error = ExtDB::Error;
 
-    fn basic(&mut self, address: Address) -> Result<Option<AccountInfo>, Self::Error> {
+    fn basic(
+        &mut self,
+        address: Address,
+        _is_preload: bool,
+    ) -> Result<Option<AccountInfo>, Self::Error> {
         let basic = match self.accounts.entry(address) {
             Entry::Occupied(entry) => entry.into_mut(),
             Entry::Vacant(entry) => entry.insert(
@@ -372,7 +376,11 @@ impl BenchmarkDB {
 impl Database for BenchmarkDB {
     type Error = Infallible;
     /// Get basic account information.
-    fn basic(&mut self, address: Address) -> Result<Option<AccountInfo>, Self::Error> {
+    fn basic(
+        &mut self,
+        address: Address,
+        _is_preload: bool,
+    ) -> Result<Option<AccountInfo>, Self::Error> {
         if address == Address::ZERO {
             return Ok(Some(AccountInfo {
                 nonce: 1,
@@ -432,7 +440,10 @@ mod tests {
             .insert_account_storage(account, key, value)
             .unwrap();
 
-        assert_eq!(new_state.basic(account).unwrap().unwrap().nonce, nonce);
+        assert_eq!(
+            new_state.basic(account, false).unwrap().unwrap().nonce,
+            nonce
+        );
         assert_eq!(new_state.storage(account, key), Ok(value));
     }
 
@@ -460,7 +471,10 @@ mod tests {
             .replace_account_storage(account, [(key1, value1)].into())
             .unwrap();
 
-        assert_eq!(new_state.basic(account).unwrap().unwrap().nonce, nonce);
+        assert_eq!(
+            new_state.basic(account, false).unwrap().unwrap().nonce,
+            nonce
+        );
         assert_eq!(new_state.storage(account, key0), Ok(U256::ZERO));
         assert_eq!(new_state.storage(account, key1), Ok(value1));
     }

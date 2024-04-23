@@ -13,7 +13,11 @@ pub trait Database {
     type Error;
 
     /// Get basic account information.
-    fn basic(&mut self, address: Address) -> Result<Option<AccountInfo>, Self::Error>;
+    fn basic(
+        &mut self,
+        address: Address,
+        is_preload: bool,
+    ) -> Result<Option<AccountInfo>, Self::Error>;
 
     /// Get account code by its hash.
     fn code_by_hash(&mut self, code_hash: B256) -> Result<Bytecode, Self::Error>;
@@ -77,7 +81,11 @@ impl<T: DatabaseRef> Database for WrapDatabaseRef<T> {
     type Error = T::Error;
 
     #[inline]
-    fn basic(&mut self, address: Address) -> Result<Option<AccountInfo>, Self::Error> {
+    fn basic(
+        &mut self,
+        address: Address,
+        _is_preload: bool,
+    ) -> Result<Option<AccountInfo>, Self::Error> {
         self.0.basic_ref(address)
     }
 

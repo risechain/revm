@@ -121,7 +121,11 @@ impl<M: Middleware> Database for EthersDB<M> {
     type Error = M::Error;
 
     #[inline]
-    fn basic(&mut self, address: Address) -> Result<Option<AccountInfo>, Self::Error> {
+    fn basic(
+        &mut self,
+        address: Address,
+        _is_preload: bool,
+    ) -> Result<Option<AccountInfo>, Self::Error> {
         <Self as DatabaseRef>::basic_ref(self, address)
     }
 

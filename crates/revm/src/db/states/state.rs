@@ -183,7 +183,7 @@ impl<DB: Database> State<DB> {
                     }
                 }
                 // if not found in bundle, load it from database
-                let info = self.database.basic(address)?;
+                let info = self.database.basic(address, false)?;
                 let account = match info {
                     None => CacheAccount::new_loaded_not_existing(),
                     Some(acc) if acc.is_empty() => {
@@ -215,7 +215,11 @@ impl<DB: Database> State<DB> {
 impl<DB: Database> Database for State<DB> {
     type Error = DB::Error;
 
-    fn basic(&mut self, address: Address) -> Result<Option<AccountInfo>, Self::Error> {
+    fn basic(
+        &mut self,
+        address: Address,
+        _is_preload: bool,
+    ) -> Result<Option<AccountInfo>, Self::Error> {
         self.load_cache_account(address).map(|a| a.account_info())
     }
 

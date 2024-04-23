@@ -27,7 +27,11 @@ pub enum DatabaseComponentError<SE, BHE> {
 impl<S: State, BH: BlockHash> Database for DatabaseComponents<S, BH> {
     type Error = DatabaseComponentError<S::Error, BH::Error>;
 
-    fn basic(&mut self, address: Address) -> Result<Option<AccountInfo>, Self::Error> {
+    fn basic(
+        &mut self,
+        address: Address,
+        _is_preload: bool,
+    ) -> Result<Option<AccountInfo>, Self::Error> {
         self.state.basic(address).map_err(Self::Error::State)
     }
 
