@@ -135,6 +135,10 @@ impl<M: Middleware> DatabaseRef for EthersDB<M> {
         // not needed because we already load code with basic info
     }
 
+    fn has_storage_ref(&self, _address: Address) -> Result<bool, Self::Error> {
+        todo!()
+    }
+
     fn storage_ref(&self, address: Address, index: U256) -> Result<U256, Self::Error> {
         let add = eH160::from(address.0 .0);
         let index = H256::from(index.to_be_bytes());
@@ -163,6 +167,11 @@ impl<M: Middleware> Database for EthersDB<M> {
     #[inline]
     fn code_by_hash(&mut self, code_hash: B256) -> Result<Bytecode, Self::Error> {
         <Self as DatabaseRef>::code_by_hash_ref(self, code_hash)
+    }
+
+    #[inline]
+    fn has_storage(&mut self, address: Address) -> Result<bool, Self::Error> {
+        <Self as DatabaseRef>::has_storage_ref(self, address)
     }
 
     #[inline]
