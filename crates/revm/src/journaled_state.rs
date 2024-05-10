@@ -325,6 +325,9 @@ impl JournaledState {
         for entry in journal_entries.into_iter().rev() {
             match entry {
                 JournalEntry::AccountWarmed { address } => {
+                    if is_spurious_dragon_enabled && address == PRECOMPILE3 {
+                        continue;
+                    }
                     state.get_mut(&address).unwrap().mark_cold();
                 }
                 JournalEntry::AccountTouched { address } => {
