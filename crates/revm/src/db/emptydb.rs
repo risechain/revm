@@ -71,6 +71,11 @@ impl<E> Database for EmptyDBTyped<E> {
     }
 
     #[inline]
+    fn has_storage(&mut self, address: Address) -> Result<bool, Self::Error> {
+        <Self as DatabaseRef>::has_storage_ref(self, address)
+    }
+
+    #[inline]
     fn storage(&mut self, address: Address, index: U256) -> Result<U256, Self::Error> {
         <Self as DatabaseRef>::storage_ref(self, address, index)
     }
@@ -92,6 +97,11 @@ impl<E> DatabaseRef for EmptyDBTyped<E> {
     #[inline]
     fn code_by_hash_ref(&self, _code_hash: B256) -> Result<Bytecode, Self::Error> {
         Ok(Bytecode::default())
+    }
+
+    #[inline]
+    fn has_storage_ref(&self, _address: Address) -> Result<bool, Self::Error> {
+        Ok(false)
     }
 
     #[inline]

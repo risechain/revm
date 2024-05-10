@@ -285,6 +285,10 @@ impl<DB: Database> InnerEvmContext<DB> {
         let checkpoint = match self.journaled_state.create_account_checkpoint(
             inputs.caller,
             inputs.created_address,
+            // This only check with the pre-execution state. Can storage be cleared after load?
+            self.db
+                .has_storage(inputs.created_address)
+                .map_err(EVMError::Database)?,
             inputs.value,
             spec_id,
         ) {
@@ -414,6 +418,10 @@ impl<DB: Database> InnerEvmContext<DB> {
         let checkpoint = match self.journaled_state.create_account_checkpoint(
             inputs.caller,
             created_address,
+            // This only check with the pre-execution state. Can storage be cleared after load?
+            self.db
+                .has_storage(created_address)
+                .map_err(EVMError::Database)?,
             inputs.value,
             spec_id,
         ) {

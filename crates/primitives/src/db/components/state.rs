@@ -16,6 +16,9 @@ pub trait State {
     /// Get account code by its hash
     fn code_by_hash(&mut self, code_hash: B256) -> Result<Bytecode, Self::Error>;
 
+    /// Get if the account already has storage (to support EIP-7610)
+    fn has_storage(&mut self, address: Address) -> Result<bool, Self::Error>;
+
     /// Get storage value of address at index.
     fn storage(&mut self, address: Address, index: U256) -> Result<U256, Self::Error>;
 }
@@ -29,6 +32,9 @@ pub trait StateRef {
 
     /// Get account code by its hash
     fn code_by_hash(&self, code_hash: B256) -> Result<Bytecode, Self::Error>;
+
+    /// Get if the account already has storage (to support EIP-7610)
+    fn has_storage(&self, address: Address) -> Result<bool, Self::Error>;
 
     /// Get storage value of address at index.
     fn storage(&self, address: Address, index: U256) -> Result<U256, Self::Error>;
@@ -48,6 +54,10 @@ where
         StateRef::code_by_hash(*self, code_hash)
     }
 
+    fn has_storage(&mut self, address: Address) -> Result<bool, Self::Error> {
+        StateRef::has_storage(*self, address)
+    }
+
     fn storage(&mut self, address: Address, index: U256) -> Result<U256, Self::Error> {
         StateRef::storage(*self, address, index)
     }
@@ -65,6 +75,10 @@ where
 
     fn code_by_hash(&mut self, code_hash: B256) -> Result<Bytecode, Self::Error> {
         self.deref().code_by_hash(code_hash)
+    }
+
+    fn has_storage(&mut self, address: Address) -> Result<bool, Self::Error> {
+        self.deref().has_storage(address)
     }
 
     fn storage(&mut self, address: Address, index: U256) -> Result<U256, Self::Error> {
