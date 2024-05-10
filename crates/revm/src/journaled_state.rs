@@ -260,6 +260,7 @@ impl JournaledState {
         &mut self,
         caller: Address,
         address: Address,
+        address_has_storage: bool,
         balance: U256,
         spec_id: SpecId,
     ) -> Result<JournalCheckpoint, InstructionResult> {
@@ -270,11 +271,17 @@ impl JournaledState {
         let account = self.state.get_mut(&address).unwrap();
         let last_journal = self.journal.last_mut().unwrap();
 
-        // New account can be created if:
+        // New account cannot be created if:
         // Bytecode is not empty.
         // Nonce is not zero
-        // Account is not precompile.
-        if account.info.code_hash != KECCAK_EMPTY || account.info.nonce != 0 {
+        // Account is precompile.
+        // EIP-7610: Storage is not empty.
+        if account.info.code_hash != KECCAK_EMPTY
+            || account.info.nonce != 0
+            || self.warm_preloaded_addresses.contains(&address)
+            // Do we enable this check only for some `spec_id`?
+            || address_has_storage
+        {
             self.checkpoint_revert(checkpoint);
             return Err(InstructionResult::CreateCollision);
         }

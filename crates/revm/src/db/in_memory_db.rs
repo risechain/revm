@@ -194,6 +194,13 @@ impl<ExtDB: DatabaseRef> Database for CacheDB<ExtDB> {
         }
     }
 
+    fn has_storage(&mut self, address: Address) -> Result<bool, Self::Error> {
+        Ok(match self.accounts.get(&address) {
+            Some(account) => !account.storage.is_empty(),
+            _ => false,
+        })
+    }
+
     /// Get the value in an account's storage slot.
     ///
     /// It is assumed that account is already loaded.
@@ -261,6 +268,13 @@ impl<ExtDB: DatabaseRef> DatabaseRef for CacheDB<ExtDB> {
             Some(entry) => Ok(entry.clone()),
             None => self.db.code_by_hash_ref(code_hash),
         }
+    }
+
+    fn has_storage_ref(&self, address: Address) -> Result<bool, Self::Error> {
+        Ok(match self.accounts.get(&address) {
+            Some(account) => !account.storage.is_empty(),
+            _ => false,
+        })
     }
 
     fn storage_ref(&self, address: Address, index: U256) -> Result<U256, Self::Error> {
@@ -395,6 +409,10 @@ impl Database for BenchmarkDB {
     /// Get account code by its hash
     fn code_by_hash(&mut self, _code_hash: B256) -> Result<Bytecode, Self::Error> {
         Ok(Bytecode::default())
+    }
+
+    fn has_storage(&mut self, _address: Address) -> Result<bool, Self::Error> {
+        Ok(false)
     }
 
     /// Get storage value of address at index.

@@ -140,6 +140,11 @@ impl<T: Transport + Clone, N: Network, P: Provider<T, N>> DatabaseRef for AlloyD
         // This is not needed, as the code is already loaded with basic_ref
     }
 
+    fn has_storage_ref(&self, _address: Address) -> Result<bool, Self::Error> {
+        // FIXME
+        Ok(false)
+    }
+
     fn storage_ref(&self, address: Address, index: U256) -> Result<U256, Self::Error> {
         let f = self
             .provider
@@ -154,13 +159,18 @@ impl<T: Transport + Clone, N: Network, P: Provider<T, N>> Database for AlloyDB<T
     type Error = TransportError;
 
     #[inline]
-    fn basic(&mut self, address: Address) -> Result<Option<AccountInfo>, Self::Error> {
+    fn basic(&mut self, address: Address, _: bool) -> Result<Option<AccountInfo>, Self::Error> {
         <Self as DatabaseRef>::basic_ref(self, address)
     }
 
     #[inline]
     fn code_by_hash(&mut self, code_hash: B256) -> Result<Bytecode, Self::Error> {
         <Self as DatabaseRef>::code_by_hash_ref(self, code_hash)
+    }
+
+    #[inline]
+    fn has_storage(&mut self, address: Address) -> Result<bool, Self::Error> {
+        <Self as DatabaseRef>::has_storage_ref(self, address)
     }
 
     #[inline]

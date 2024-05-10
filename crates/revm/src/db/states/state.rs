@@ -241,6 +241,20 @@ impl<DB: Database> Database for State<DB> {
         res
     }
 
+    fn has_storage(&mut self, address: Address) -> Result<bool, Self::Error> {
+        Ok(
+            match self
+                .cache
+                .accounts
+                .get(&address)
+                .and_then(|account| account.account.clone())
+            {
+                Some(account) => !account.storage.is_empty(),
+                _ => false,
+            },
+        )
+    }
+
     fn storage(&mut self, address: Address, index: U256) -> Result<U256, Self::Error> {
         // Account is guaranteed to be loaded.
         // Note that storage from bundle is already loaded with account.
