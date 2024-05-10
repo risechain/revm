@@ -37,6 +37,10 @@ impl<S: State, BH: BlockHash> Database for DatabaseComponents<S, BH> {
             .map_err(Self::Error::State)
     }
 
+    fn has_storage(&mut self, address: Address) -> Result<bool, Self::Error> {
+        self.state.has_storage(address).map_err(Self::Error::State)
+    }
+
     fn storage(&mut self, address: Address, index: U256) -> Result<U256, Self::Error> {
         self.state
             .storage(address, index)
@@ -61,6 +65,10 @@ impl<S: StateRef, BH: BlockHashRef> DatabaseRef for DatabaseComponents<S, BH> {
         self.state
             .code_by_hash(code_hash)
             .map_err(Self::Error::State)
+    }
+
+    fn has_storage_ref(&self, address: Address) -> Result<bool, Self::Error> {
+        self.state.has_storage(address).map_err(Self::Error::State)
     }
 
     fn storage_ref(&self, address: Address, index: U256) -> Result<U256, Self::Error> {
