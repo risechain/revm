@@ -195,6 +195,10 @@ impl JournaledState {
 
         // sub balance from
         let from_account = &mut self.state.get_mut(from).unwrap();
+        // EIP-2681
+        if from_account.info.nonce == u64::MAX {
+            return Ok(Some(InstructionResult::NonceOverflow));
+        }
         Self::touch_account(self.journal.last_mut().unwrap(), from, from_account);
         let from_balance = &mut from_account.info.balance;
 
