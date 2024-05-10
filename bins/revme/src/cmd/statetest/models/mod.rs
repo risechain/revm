@@ -129,7 +129,7 @@ pub struct TransactionParts {
     pub sender: Option<Address>,
     #[serde(default, deserialize_with = "deserialize_maybe_empty")]
     pub to: Option<Address>,
-    pub value: Vec<U256>,
+    pub value: Vec<String>,
     pub max_fee_per_gas: Option<U256>,
     pub max_priority_fee_per_gas: Option<U256>,
 
