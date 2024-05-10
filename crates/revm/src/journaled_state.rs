@@ -334,6 +334,9 @@ impl JournaledState {
         for entry in journal_entries.into_iter().rev() {
             match entry {
                 JournalEntry::AccountLoaded { address } => {
+                    if is_spurious_dragon_enabled && address == PRECOMPILE3 {
+                        continue;
+                    }
                     state.remove(&address);
                 }
                 JournalEntry::AccountTouched { address } => {
