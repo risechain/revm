@@ -11,7 +11,7 @@ use revm::{
     interpreter::analysis::to_analysed,
     primitives::{
         calc_excess_blob_gas, keccak256, Bytecode, Bytes, EVMResultGeneric, Env, ExecutionResult,
-        SpecId, TxKind, B256,
+        SpecId, TxKind, B256, U256,
     },
     Evm, State,
 };
@@ -20,6 +20,7 @@ use std::{
     convert::Infallible,
     io::{stderr, stdout},
     path::{Path, PathBuf},
+    str::FromStr,
     sync::{
         atomic::{AtomicBool, AtomicUsize, Ordering},
         Arc, Mutex,
@@ -350,7 +351,7 @@ pub fn execute_test_suite(
                     .get(test.indexes.data)
                     .unwrap()
                     .clone();
-                env.tx.value = unit.transaction.value[test.indexes.value];
+                env.tx.value = U256::from_str(&unit.transaction.value[test.indexes.value]).unwrap();
 
                 env.tx.access_list = unit
                     .transaction
