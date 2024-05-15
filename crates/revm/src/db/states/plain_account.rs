@@ -2,6 +2,7 @@ use crate::primitives::{AccountInfo, EvmStorageSlot, HashMap, U256};
 
 // TODO rename this to BundleAccount. As for the block level we have original state.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct PlainAccount {
     pub info: AccountInfo,
     pub storage: PlainStorage,
