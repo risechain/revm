@@ -48,7 +48,7 @@ pub struct PostExecutionHandler<'a, EXT, DB: Database> {
     /// Reimburse the caller with ethereum it didn't spend.
     pub reimburse_caller: ReimburseCallerHandle<'a, EXT, DB>,
     /// Reward the beneficiary with caller fee.
-    pub reward_beneficiary: RewardBeneficiaryHandle<'a, EXT, DB>,
+    pub reward_beneficiary: Option<RewardBeneficiaryHandle<'a, EXT, DB>>,
     /// Main return handle, returns the output of the transact.
     pub output: OutputHandle<'a, EXT, DB>,
     /// Called when execution ends.
@@ -62,11 +62,15 @@ pub struct PostExecutionHandler<'a, EXT, DB: Database> {
 
 impl<'a, EXT: 'a, DB: Database + 'a> PostExecutionHandler<'a, EXT, DB> {
     /// Creates mainnet MainHandles.
-    pub fn new<SPEC: Spec + 'a>() -> Self {
+    pub fn new<SPEC: Spec + 'a>(with_reward_beneficiary: bool) -> Self {
         Self {
             refund: Arc::new(mainnet::refund::<SPEC, EXT, DB>),
             reimburse_caller: Arc::new(mainnet::reimburse_caller::<SPEC, EXT, DB>),
-            reward_beneficiary: Arc::new(mainnet::reward_beneficiary::<SPEC, EXT, DB>),
+            reward_beneficiary: if with_reward_beneficiary {
+                Some(Arc::new(mainnet::reward_beneficiary::<SPEC, EXT, DB>))
+            } else {
+                None
+            },
             output: Arc::new(mainnet::output::<EXT, DB>),
             end: Arc::new(mainnet::end::<EXT, DB>),
             clear: Arc::new(mainnet::clear::<EXT, DB>),
@@ -94,7 +98,11 @@ impl<'a, EXT, DB: Database> PostExecutionHandler<'a, EXT, DB> {
         context: &mut Context<EXT, DB>,
         gas: &Gas,
     ) -> Result<(), EVMError<DB::Error>> {
-        (self.reward_beneficiary)(context, gas)
+        if let Some(reward_beneficiary) = &self.reward_beneficiary {
+            reward_beneficiary(context, gas)
+        } else {
+            Ok(())
+        }
     }
 
     /// Returns the output of transaction.

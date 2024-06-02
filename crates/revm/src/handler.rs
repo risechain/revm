@@ -52,20 +52,20 @@ impl<'a, EXT, DB: Database> EvmHandler<'a, EXT, DB> {
                     Handler::mainnet_with_spec(cfg.spec_id)
                 }
             } else {
-                Handler::mainnet_with_spec(cfg.spec_id)
+                Handler::mainnet_with_spec(cfg.spec_id, true)
             }
         }
     }
 
     /// Default handler for Ethereum mainnet.
-    pub fn mainnet<SPEC: Spec>() -> Self {
+    pub fn mainnet<SPEC: Spec>(with_reward_beneficiary: bool) -> Self {
         Self {
             cfg: HandlerCfg::new(SPEC::SPEC_ID),
             instruction_table: InstructionTables::new_plain::<SPEC>(),
             registers: Vec::new(),
             validation: ValidationHandler::new::<SPEC>(),
             pre_execution: PreExecutionHandler::new::<SPEC>(),
-            post_execution: PostExecutionHandler::new::<SPEC>(),
+            post_execution: PostExecutionHandler::new::<SPEC>(with_reward_beneficiary),
             execution: ExecutionHandler::new::<SPEC>(),
         }
     }
@@ -94,8 +94,8 @@ impl<'a, EXT, DB: Database> EvmHandler<'a, EXT, DB> {
 
     /// Creates handler with variable spec id, inside it will call `mainnet::<SPEC>` for
     /// appropriate spec.
-    pub fn mainnet_with_spec(spec_id: SpecId) -> Self {
-        spec_to_generic!(spec_id, Self::mainnet::<SPEC>())
+    pub fn mainnet_with_spec(spec_id: SpecId, with_reward_beneficiary: bool) -> Self {
+        spec_to_generic!(spec_id, Self::mainnet::<SPEC>(with_reward_beneficiary))
     }
 
     /// Specification ID.
@@ -176,7 +176,7 @@ impl<'a, EXT, DB: Database> EvmHandler<'a, EXT, DB> {
         let out = self.registers.pop();
         if out.is_some() {
             let registers = core::mem::take(&mut self.registers);
-            let mut base_handler = Handler::mainnet_with_spec(self.cfg.spec_id);
+            let mut base_handler = Handler::mainnet_with_spec(self.cfg.spec_id, true);
             // apply all registers to default handler and raw mainnet instruction table.
             for register in registers {
                 base_handler.append_handler_register(register)
@@ -189,7 +189,7 @@ impl<'a, EXT, DB: Database> EvmHandler<'a, EXT, DB> {
     /// Creates the Handler with Generic Spec.
     pub fn create_handle_generic<SPEC: Spec>(&mut self) -> EvmHandler<'a, EXT, DB> {
         let registers = core::mem::take(&mut self.registers);
-        let mut base_handler = Handler::mainnet::<SPEC>();
+        let mut base_handler = Handler::mainnet::<SPEC>(true);
         // apply all registers to default handler and raw mainnet instruction table.
         for register in registers {
             base_handler.append_handler_register(register)
@@ -205,7 +205,7 @@ impl<'a, EXT, DB: Database> EvmHandler<'a, EXT, DB> {
 
         let registers = core::mem::take(&mut self.registers);
         // register for optimism is added as a register, so we need to create mainnet handler here.
-        let mut handler = Handler::mainnet_with_spec(spec_id);
+        let mut handler = Handler::mainnet_with_spec(spec_id, true);
         // apply all registers to default handler and raw mainnet instruction table.
         for register in registers {
             handler.append_handler_register(register)
