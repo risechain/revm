@@ -160,7 +160,7 @@ impl<'a, EXT, DB: Database> EvmBuilder<'a, SetGenericStage, EXT, DB> {
     /// If `optimism-default-handler` feature is enabled this is not needed.
     #[cfg(feature = "optimism")]
     pub fn optimism(mut self) -> EvmBuilder<'a, HandlerStage, EXT, DB> {
-        self.handler = Handler::optimism_with_spec(self.handler.cfg.spec_id);
+        self.handler = Handler::optimism_with_spec(self.handler.cfg.spec_id, true);
         EvmBuilder {
             context: self.context,
             handler: self.handler,
@@ -173,7 +173,7 @@ impl<'a, EXT, DB: Database> EvmBuilder<'a, SetGenericStage, EXT, DB> {
     /// Enabled only with `optimism-default-handler` feature.
     #[cfg(feature = "optimism-default-handler")]
     pub fn mainnet(mut self) -> EvmBuilder<'a, HandlerStage, EXT, DB> {
-        self.handler = Handler::mainnet_with_spec(self.handler.cfg.spec_id);
+        self.handler = Handler::mainnet_with_spec(self.handler.cfg.spec_id, true);
         EvmBuilder {
             context: self.context,
             handler: self.handler,
@@ -212,7 +212,7 @@ impl<'a, EXT, DB: Database> EvmBuilder<'a, HandlerStage, EXT, DB> {
     /// Enabled only with `optimism-default-handler` feature.
     #[cfg(feature = "optimism-default-handler")]
     pub fn reset_handler_with_mainnet(mut self) -> EvmBuilder<'a, HandlerStage, EXT, DB> {
-        self.handler = Handler::mainnet_with_spec(self.handler.cfg.spec_id);
+        self.handler = Handler::mainnet_with_spec(self.handler.cfg.spec_id, true);
         EvmBuilder {
             context: self.context,
             handler: self.handler,
@@ -283,7 +283,7 @@ impl<'a, BuilderStage, EXT, DB: Database> EvmBuilder<'a, BuilderStage, EXT, DB> 
     /// let builder = EvmBuilder::default();
     ///
     /// // get the desired handler
-    /// let mainnet = Handler::mainnet::<CancunSpec>();
+    /// let mainnet = Handler::mainnet::<CancunSpec>(true);
     /// let builder = builder.with_handler(mainnet);
     ///
     /// // build the EVM

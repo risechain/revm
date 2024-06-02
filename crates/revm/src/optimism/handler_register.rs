@@ -3,7 +3,7 @@
 use crate::{
     handler::{
         mainnet::{self, deduct_caller_inner},
-        register::EvmHandler,
+        register::HandleRegisterBox,
     },
     interpreter::{return_ok, return_revert, Gas, InstructionResult},
     optimism,
@@ -20,26 +20,34 @@ use std::{boxed::Box, string::ToString, sync::Arc};
 
 use super::l1block::OPERATOR_FEE_RECIPIENT;
 
-pub fn optimism_handle_register<DB: Database, EXT>(handler: &mut EvmHandler<'_, EXT, DB>) {
-    spec_to_generic!(handler.cfg.spec_id, {
-        // validate environment
-        handler.validation.env = Arc::new(validate_env::<SPEC, DB>);
-        // Validate transaction against state.
-        handler.validation.tx_against_state = Arc::new(validate_tx_against_state::<SPEC, EXT, DB>);
-        // Load additional precompiles for the given chain spec.
-        handler.pre_execution.load_precompiles = Arc::new(load_precompiles::<SPEC, EXT, DB>);
-        // An estimated batch cost is charged from the caller and added to L1 Fee Vault.
-        handler.pre_execution.deduct_caller = Arc::new(deduct_caller::<SPEC, EXT, DB>);
-        // Refund is calculated differently then mainnet.
-        handler.execution.last_frame_return = Arc::new(last_frame_return::<SPEC, EXT, DB>);
-        handler.post_execution.refund = Arc::new(refund::<SPEC, EXT, DB>);
-        handler.post_execution.reimburse_caller = Arc::new(reimburse_caller::<SPEC, EXT, DB>);
-        handler.post_execution.reward_beneficiary = Arc::new(reward_beneficiary::<SPEC, EXT, DB>);
-        // In case of halt of deposit transaction return Error.
-        handler.post_execution.output = Arc::new(output::<SPEC, EXT, DB>);
-        handler.post_execution.end = Arc::new(end::<SPEC, EXT, DB>);
-        handler.post_execution.clear = Arc::new(clear::<EXT, DB>);
-    });
+pub fn optimism_handle_register<'a, DB: Database, EXT>(
+    with_reward_beneficiary: bool,
+) -> HandleRegisterBox<'a, EXT, DB> {
+    Box::new(move |handler| {
+        spec_to_generic!(handler.cfg.spec_id, {
+            // validate environment
+            handler.validation.env = Arc::new(validate_env::<SPEC, DB>);
+            // Validate transaction against state.
+            handler.validation.tx_against_state =
+                Arc::new(validate_tx_against_state::<SPEC, EXT, DB>);
+            // Load additional precompiles for the given chain spec.
+            handler.pre_execution.load_precompiles = Arc::new(load_precompiles::<SPEC, EXT, DB>);
+            // An estimated batch cost is charged from the caller and added to L1 Fee Vault.
+            handler.pre_execution.deduct_caller = Arc::new(deduct_caller::<SPEC, EXT, DB>);
+            // Refund is calculated differently then mainnet.
+            handler.execution.last_frame_return = Arc::new(last_frame_return::<SPEC, EXT, DB>);
+            handler.post_execution.refund = Box::new(refund::<SPEC, EXT, DB>);
+            handler.post_execution.reimburse_caller = Box::new(reimburse_caller::<SPEC, EXT, DB>);
+            if with_reward_beneficiary {
+                handler.post_execution.reward_beneficiary =
+                    Some(Box::new(reward_beneficiary::<SPEC, EXT, DB>));
+            }
+            // In case of halt of deposit transaction return Error.
+            handler.post_execution.output = Box::new(output::<SPEC, EXT, DB>);
+            handler.post_execution.end = Box::new(end::<SPEC, EXT, DB>);
+            handler.post_execution.clear = Box::new(clear::<EXT, DB>);
+        });
+    })
 }
 
 /// Validate environment for the Optimism chain.
