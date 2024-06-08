@@ -5,17 +5,16 @@ use crate::{
     primitives::{db::Database, EVMError, EVMResultGeneric, ResultAndState, Spec},
     Context, FrameResult,
 };
-use std::sync::Arc;
 
 /// Reimburse the caller with ethereum it didn't spent.
 pub type ReimburseCallerHandle<'a, EXT, DB> =
-    Arc<dyn Fn(&mut Context<EXT, DB>, &Gas) -> EVMResultGeneric<(), <DB as Database>::Error> + 'a>;
+    Box<dyn Fn(&mut Context<EXT, DB>, &Gas) -> EVMResultGeneric<(), <DB as Database>::Error> + 'a>;
 
 /// Reward beneficiary with transaction rewards.
 pub type RewardBeneficiaryHandle<'a, EXT, DB> = ReimburseCallerHandle<'a, EXT, DB>;
 
 /// Main return handle, takes state from journal and transforms internal result to external.
-pub type OutputHandle<'a, EXT, DB> = Arc<
+pub type OutputHandle<'a, EXT, DB> = Box<
     dyn Fn(
             &mut Context<EXT, DB>,
             FrameResult,
@@ -27,7 +26,7 @@ pub type OutputHandle<'a, EXT, DB> = Arc<
 /// This will be called after all the other handlers.
 ///
 /// It is useful for catching errors and returning them in a different way.
-pub type EndHandle<'a, EXT, DB> = Arc<
+pub type EndHandle<'a, EXT, DB> = Box<
     dyn Fn(
             &mut Context<EXT, DB>,
             Result<ResultAndState, EVMError<<DB as Database>::Error>>,
@@ -37,10 +36,10 @@ pub type EndHandle<'a, EXT, DB> = Arc<
 
 /// Clear handle, doesn't have output, its purpose is to clear the
 /// context. It will always be called even on failed validation.
-pub type ClearHandle<'a, EXT, DB> = Arc<dyn Fn(&mut Context<EXT, DB>) + 'a>;
+pub type ClearHandle<'a, EXT, DB> = Box<dyn Fn(&mut Context<EXT, DB>) + 'a>;
 
 /// Refund handle, calculates the final refund.
-pub type RefundHandle<'a, EXT, DB> = Arc<dyn Fn(&mut Context<EXT, DB>, &mut Gas, i64) + 'a>;
+pub type RefundHandle<'a, EXT, DB> = Box<dyn Fn(&mut Context<EXT, DB>, &mut Gas, i64) + 'a>;
 /// Handles related to post execution after the stack loop is finished.
 pub struct PostExecutionHandler<'a, EXT, DB: Database> {
     /// Calculate final refund
@@ -64,16 +63,16 @@ impl<'a, EXT: 'a, DB: Database + 'a> PostExecutionHandler<'a, EXT, DB> {
     /// Creates mainnet MainHandles.
     pub fn new<SPEC: Spec + 'a>(with_reward_beneficiary: bool) -> Self {
         Self {
-            refund: Arc::new(mainnet::refund::<SPEC, EXT, DB>),
-            reimburse_caller: Arc::new(mainnet::reimburse_caller::<SPEC, EXT, DB>),
+            refund: Box::new(mainnet::refund::<SPEC, EXT, DB>),
+            reimburse_caller: Box::new(mainnet::reimburse_caller::<SPEC, EXT, DB>),
             reward_beneficiary: if with_reward_beneficiary {
-                Some(Arc::new(mainnet::reward_beneficiary::<SPEC, EXT, DB>))
+                Some(Box::new(mainnet::reward_beneficiary::<SPEC, EXT, DB>))
             } else {
                 None
             },
-            output: Arc::new(mainnet::output::<EXT, DB>),
-            end: Arc::new(mainnet::end::<EXT, DB>),
-            clear: Arc::new(mainnet::clear::<EXT, DB>),
+            output: Box::new(mainnet::output::<EXT, DB>),
+            end: Box::new(mainnet::end::<EXT, DB>),
+            clear: Box::new(mainnet::clear::<EXT, DB>),
         }
     }
 }
