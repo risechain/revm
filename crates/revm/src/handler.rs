@@ -221,7 +221,7 @@ mod test {
     use core::cell::RefCell;
 
     use crate::{db::EmptyDB, primitives::EVMError};
-    use std::{rc::Rc, sync::Arc};
+    use std::rc::Rc;
 
     use super::*;
 
@@ -231,7 +231,7 @@ mod test {
             let inner = inner.clone();
             Box::new(move |h| {
                 *inner.borrow_mut() += 1;
-                h.post_execution.output = Arc::new(|_, _| Err(EVMError::Custom("test".to_string())))
+                h.post_execution.output = Box::new(|_, _| Err(EVMError::Custom("test".to_string())))
             })
         };
 
