@@ -5,7 +5,7 @@ use crate::{
 };
 use core::ptr;
 
-pub fn keccak256<H: Host + ?Sized>(interpreter: &mut Interpreter, _host: &mut H) {
+pub fn keccak256<H: Host + ?Sized>(interpreter: &mut Interpreter, host: &mut H) {
     pop_top!(interpreter, offset, len_ptr);
     let len = as_usize_or_fail!(interpreter, len_ptr);
     gas_or_fail!(interpreter, gas::keccak256_cost(len as u64));
@@ -14,7 +14,14 @@ pub fn keccak256<H: Host + ?Sized>(interpreter: &mut Interpreter, _host: &mut H)
     } else {
         let from = as_usize_or_fail!(interpreter, offset);
         resize_memory!(interpreter, from, len);
-        crate::primitives::keccak256(interpreter.shared_memory.slice(from, len))
+        let bytes = interpreter.shared_memory.slice(from, len);
+        if let Some(hash) = host.get_keccak256(bytes) {
+            hash
+        } else {
+            let hash = crate::primitives::keccak256(bytes);
+            host.cache_keccak256(bytes, hash);
+            hash
+        }
     };
     *len_ptr = hash.into();
 }

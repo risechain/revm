@@ -47,6 +47,12 @@ pub trait Host {
 
     /// Mark `address` to be deleted, with funds transferred to `target`.
     fn selfdestruct(&mut self, address: Address, target: Address) -> Option<SelfDestructResult>;
+
+    /// Get a cached hash
+    fn get_keccak256(&mut self, bytes: &[u8]) -> Option<B256>;
+
+    /// Cache a hash
+    fn cache_keccak256(&mut self, bytes: &[u8], hash: B256);
 }
 
 /// Represents the result of an `sstore` operation.

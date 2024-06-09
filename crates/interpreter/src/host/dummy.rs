@@ -14,6 +14,7 @@ pub struct DummyHost {
     pub storage: HashMap<U256, U256>,
     pub transient_storage: HashMap<U256, U256>,
     pub log: Vec<Log>,
+    pub cached_hashes: HashMap<Vec<u8>, B256>,
 }
 
 impl DummyHost {
@@ -120,5 +121,13 @@ impl Host for DummyHost {
     #[inline]
     fn selfdestruct(&mut self, _address: Address, _target: Address) -> Option<SelfDestructResult> {
         panic!("Selfdestruct is not supported for this host")
+    }
+
+    fn get_keccak256(&mut self, bytes: &[u8]) -> Option<B256> {
+        self.cached_hashes.get(bytes).cloned()
+    }
+
+    fn cache_keccak256(&mut self, bytes: &[u8], hash: B256) {
+        self.cached_hashes.insert(bytes.to_vec(), hash);
     }
 }

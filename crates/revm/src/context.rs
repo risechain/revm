@@ -9,6 +9,7 @@ pub use context_precompiles::{
 pub use evm_context::EvmContext;
 pub use inner_evm_context::InnerEvmContext;
 use revm_interpreter::as_usize_saturated;
+use revm_precompile::HashMap;
 
 use crate::{
     db::{Database, EmptyDB},
@@ -23,6 +24,8 @@ pub struct Context<EXT, DB: Database> {
     pub evm: EvmContext<DB>,
     /// External contexts.
     pub external: EXT,
+    /// Cached hashes
+    pub cached_hashes: HashMap<Vec<u8>, B256>,
 }
 
 impl<EXT: Clone, DB: Database + Clone> Clone for Context<EXT, DB>
@@ -33,6 +36,7 @@ where
         Self {
             evm: self.evm.clone(),
             external: self.external.clone(),
+            cached_hashes: self.cached_hashes.clone(),
         }
     }
 }
@@ -49,6 +53,7 @@ impl Context<(), EmptyDB> {
         Context {
             evm: EvmContext::new(EmptyDB::new()),
             external: (),
+            cached_hashes: HashMap::new(),
         }
     }
 }
@@ -59,6 +64,7 @@ impl<DB: Database> Context<(), DB> {
         Context {
             evm: EvmContext::new_with_env(db, Box::default()),
             external: (),
+            cached_hashes: HashMap::new(),
         }
     }
 }
@@ -66,7 +72,11 @@ impl<DB: Database> Context<(), DB> {
 impl<EXT, DB: Database> Context<EXT, DB> {
     /// Creates new context with external and database.
     pub fn new(evm: EvmContext<DB>, external: EXT) -> Context<EXT, DB> {
-        Context { evm, external }
+        Context {
+            evm,
+            external,
+            cached_hashes: HashMap::new(),
+        }
     }
 }
 
@@ -193,5 +203,13 @@ impl<EXT, DB: Database> Host for Context<EXT, DB> {
             .selfdestruct(address, target, &mut self.evm.inner.db)
             .map_err(|e| self.evm.error = Err(e))
             .ok()
+    }
+
+    fn get_keccak256(&mut self, bytes: &[u8]) -> Option<B256> {
+        self.cached_hashes.get(bytes).cloned()
+    }
+
+    fn cache_keccak256(&mut self, bytes: &[u8], hash: B256) {
+        self.cached_hashes.insert(bytes.to_vec(), hash);
     }
 }
