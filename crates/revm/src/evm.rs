@@ -28,6 +28,8 @@ pub struct Evm<'a, EXT, DB: Database> {
     pub handler: Handler<'a, Context<EXT, DB>, EXT, DB>,
 }
 
+unsafe impl<'a, EXT, DB: Database> Sync for Evm<'a, EXT, DB> {}
+
 impl<EXT, DB> fmt::Debug for Evm<'_, EXT, DB>
 where
     EXT: fmt::Debug,
