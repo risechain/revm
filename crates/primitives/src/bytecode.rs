@@ -15,7 +15,7 @@ pub enum Bytecode {
     /// The bytecode has been analyzed for valid jump destinations.
     LegacyAnalyzed(LegacyAnalyzedBytecode),
     /// Ethereum Object Format
-    Eof(Eof),
+    Eof(Box<Eof>),
 }
 
 impl Default for Bytecode {

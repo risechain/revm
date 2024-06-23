@@ -285,7 +285,7 @@ impl<DB: Database> InnerEvmContext<DB> {
         let contract = Contract::new(
             inputs.input.clone(),
             // fine to clone as it is Bytes.
-            Bytecode::Eof(inputs.eof_init_code.clone()),
+            Bytecode::Eof(Box::new(inputs.eof_init_code.clone())),
             None,
             inputs.created_address,
             inputs.caller,
@@ -331,7 +331,7 @@ impl<DB: Database> InnerEvmContext<DB> {
 
         // eof bytecode is going to be hashed.
         self.journaled_state
-            .set_code(address, Bytecode::Eof(bytecode));
+            .set_code(address, Bytecode::Eof(Box::new(bytecode)));
     }
 
     /// Make create frame.
