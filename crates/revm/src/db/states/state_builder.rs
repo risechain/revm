@@ -1,13 +1,11 @@
 use super::{cache::CacheState, state::DBBox, BundleState, State, TransitionState};
 use crate::db::EmptyDB;
-use revm_interpreter::primitives::{
-    db::{Database, DatabaseRef, WrapDatabaseRef},
-    B256,
-};
+use dashmap::DashMap;
+use revm_interpreter::primitives::{db::DatabaseRef, B256};
 use std::collections::BTreeMap;
 
 /// Allows building of State and initializing it with different options.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug)]
 pub struct StateBuilder<DB> {
     /// Database that we use to fetch data from.
     database: DB,
@@ -40,13 +38,13 @@ impl StateBuilder<EmptyDB> {
     }
 }
 
-impl<DB: Database + Default> Default for StateBuilder<DB> {
+impl<DB: DatabaseRef + Default> Default for StateBuilder<DB> {
     fn default() -> Self {
         Self::new_with_database(DB::default())
     }
 }
 
-impl<DB: Database> StateBuilder<DB> {
+impl<DB: DatabaseRef> StateBuilder<DB> {
     /// Create a new builder with the given database.
     pub fn new_with_database(database: DB) -> Self {
         Self {
@@ -61,7 +59,7 @@ impl<DB: Database> StateBuilder<DB> {
     }
 
     /// Set the database.
-    pub fn with_database<ODB: Database>(self, database: ODB) -> StateBuilder<ODB> {
+    pub fn with_database<ODB: DatabaseRef>(self, database: ODB) -> StateBuilder<ODB> {
         // cast to the different database,
         // Note that we return different type depending of the database NewDBError.
         StateBuilder {
@@ -76,11 +74,8 @@ impl<DB: Database> StateBuilder<DB> {
     }
 
     /// Takes [DatabaseRef] and wraps it with [WrapDatabaseRef].
-    pub fn with_database_ref<ODB: DatabaseRef>(
-        self,
-        database: ODB,
-    ) -> StateBuilder<WrapDatabaseRef<ODB>> {
-        self.with_database(WrapDatabaseRef(database))
+    pub fn with_database_ref<ODB: DatabaseRef>(self, database: ODB) -> StateBuilder<ODB> {
+        self.with_database(database)
     }
 
     /// With boxed version of database.
@@ -165,7 +160,7 @@ impl<DB: Database> StateBuilder<DB> {
             transition_state: self.with_bundle_update.then(TransitionState::default),
             bundle_state: self.with_bundle_prestate.unwrap_or_default(),
             use_preloaded_bundle,
-            block_hashes: self.with_block_hashes,
+            block_hashes: DashMap::from_iter(self.with_block_hashes),
         }
     }
 }

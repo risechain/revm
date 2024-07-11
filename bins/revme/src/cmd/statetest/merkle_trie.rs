@@ -13,13 +13,11 @@ pub fn log_rlp_hash(logs: &[Log]) -> B256 {
     keccak256(&out)
 }
 
-pub fn state_merkle_trie_root<'a>(
-    accounts: impl IntoIterator<Item = (Address, &'a PlainAccount)>,
-) -> B256 {
+pub fn state_merkle_trie_root(accounts: impl IntoIterator<Item = (Address, PlainAccount)>) -> B256 {
     trie_root(accounts.into_iter().map(|(address, acc)| {
         (
             address,
-            alloy_rlp::encode_fixed_size(&TrieAccount::new(acc)),
+            alloy_rlp::encode_fixed_size(&TrieAccount::new(&acc)),
         )
     }))
 }
