@@ -3164,6 +3164,7 @@ dependencies = [
  "auto_impl",
  "cfg-if",
  "criterion",
+ "dashmap",
  "dyn-clone",
  "ethers-contract",
  "ethers-core",
