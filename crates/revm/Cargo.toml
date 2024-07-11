@@ -53,6 +53,9 @@ alloy-provider = { version = "0.3", optional = true, default-features = false }
 alloy-eips = { version = "0.3", optional = true, default-features = false }
 alloy-transport = { version = "0.3", optional = true, default-features = false }
 
+# pevm
+dashmap = "6.0.1"
+
 [dev-dependencies]
 alloy-sol-types = { version = "0.8.2", default-features = false, features = [
     "std",

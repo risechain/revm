@@ -3,18 +3,34 @@ use super::{
     CacheAccount, StateBuilder, TransitionAccount, TransitionState,
 };
 use crate::db::EmptyDB;
+use core::hash::{BuildHasherDefault, Hasher};
+use dashmap::{mapref::one::RefMut, DashMap, Entry};
 use revm_interpreter::primitives::{
-    db::{Database, DatabaseCommit},
-    hash_map, Account, AccountInfo, Address, Bytecode, HashMap, B256, BLOCK_HASH_HISTORY, U256,
+    db::{Database, DatabaseCommit, DatabaseRef},
+    hash_map, Account, AccountInfo, Address, Bytecode, HashMap, B256, U256,
 };
-use std::{
-    boxed::Box,
-    collections::{btree_map, BTreeMap},
-    vec::Vec,
-};
+use std::{boxed::Box, vec::Vec};
+
+#[derive(Debug, Default)]
+pub struct IdentityHasher(u64);
+impl Hasher for IdentityHasher {
+    fn write_u64(&mut self, id: u64) {
+        self.0 = id;
+    }
+    fn write_usize(&mut self, id: usize) {
+        self.0 = id as u64;
+    }
+    fn finish(&self) -> u64 {
+        self.0
+    }
+    fn write(&mut self, _: &[u8]) {
+        unreachable!()
+    }
+}
+pub type BuildIdentityHasher = BuildHasherDefault<IdentityHasher>;
 
 /// Database boxed with a lifetime and Send.
-pub type DBBox<'a, E> = Box<dyn Database<Error = E> + Send + 'a>;
+pub type DBBox<'a, E> = Box<dyn DatabaseRef<Error = E> + Send + 'a>;
 
 /// More constrained version of State that uses Boxed database with a lifetime.
 ///
@@ -55,7 +71,7 @@ pub struct State<DB> {
     ///
     /// This map can be used to give different values for block hashes if in case
     /// The fork block is different or some blocks are not saved inside database.
-    pub block_hashes: BTreeMap<u64, B256>,
+    pub block_hashes: DashMap<u64, B256, BuildIdentityHasher>,
 }
 
 // Have ability to call State::builder without having to specify the type.
@@ -66,7 +82,7 @@ impl State<EmptyDB> {
     }
 }
 
-impl<DB: Database> State<DB> {
+impl<DB: DatabaseRef> State<DB> {
     /// Returns the size hint for the inner bundle state.
     /// See [BundleState::size_hint] for more info.
     pub fn bundle_size_hint(&self) -> usize {
@@ -91,7 +107,7 @@ impl<DB: Database> State<DB> {
             if balance == 0 {
                 continue;
             }
-            let original_account = self.load_cache_account(address)?;
+            let mut original_account = self.load_cache_account(address)?;
             transitions.push((
                 address,
                 original_account
@@ -117,7 +133,7 @@ impl<DB: Database> State<DB> {
         let mut transitions = Vec::new();
         let mut balances = Vec::new();
         for address in addresses {
-            let original_account = self.load_cache_account(address)?;
+            let mut original_account = self.load_cache_account(address)?;
             let (balance, transition) = original_account.drain_balance();
             balances.push(balance);
             transitions.push((address, transition))
@@ -174,9 +190,12 @@ impl<DB: Database> State<DB> {
     /// Get a mutable reference to the [`CacheAccount`] for the given address.
     /// If the account is not found in the cache, it will be loaded from the
     /// database and inserted into the cache.
-    pub fn load_cache_account(&mut self, address: Address) -> Result<&mut CacheAccount, DB::Error> {
+    pub fn load_cache_account(
+        &self,
+        address: Address,
+    ) -> Result<RefMut<'_, Address, CacheAccount>, DB::Error> {
         match self.cache.accounts.entry(address) {
-            hash_map::Entry::Vacant(entry) => {
+            Entry::Vacant(entry) => {
                 if self.use_preloaded_bundle {
                     // load account from bundle state
                     if let Some(account) =
@@ -186,7 +205,7 @@ impl<DB: Database> State<DB> {
                     }
                 }
                 // if not found in bundle, load it from database
-                let info = self.database.basic(address)?;
+                let info = self.database.basic_ref(address)?;
                 let account = match info {
                     None => CacheAccount::new_loaded_not_existing(),
                     Some(acc) if acc.is_empty() => {
@@ -196,7 +215,7 @@ impl<DB: Database> State<DB> {
                 };
                 Ok(entry.insert(account))
             }
-            hash_map::Entry::Occupied(entry) => Ok(entry.into_mut()),
+            Entry::Occupied(entry) => Ok(entry.into_ref()),
         }
     }
 
@@ -213,19 +232,17 @@ impl<DB: Database> State<DB> {
     pub fn take_bundle(&mut self) -> BundleState {
         core::mem::take(&mut self.bundle_state)
     }
-}
 
-impl<DB: Database> Database for State<DB> {
-    type Error = DB::Error;
-
-    fn basic(&mut self, address: Address) -> Result<Option<AccountInfo>, Self::Error> {
+    // Database stuff
+    //
+    fn db_basic(&self, address: Address) -> Result<Option<AccountInfo>, DB::Error> {
         self.load_cache_account(address).map(|a| a.account_info())
     }
 
-    fn code_by_hash(&mut self, code_hash: B256) -> Result<Bytecode, Self::Error> {
+    fn db_code_by_hash(&self, code_hash: B256) -> Result<Bytecode, DB::Error> {
         let res = match self.cache.contracts.entry(code_hash) {
-            hash_map::Entry::Occupied(entry) => Ok(entry.get().clone()),
-            hash_map::Entry::Vacant(entry) => {
+            Entry::Occupied(entry) => Ok(entry.get().clone()),
+            Entry::Vacant(entry) => {
                 if self.use_preloaded_bundle {
                     if let Some(code) = self.bundle_state.contracts.get(&code_hash) {
                         entry.insert(code.clone());
@@ -233,7 +250,7 @@ impl<DB: Database> Database for State<DB> {
                     }
                 }
                 // if not found in bundle ask database
-                let code = self.database.code_by_hash(code_hash)?;
+                let code = self.database.code_by_hash_ref(code_hash)?;
                 entry.insert(code.clone());
                 Ok(code)
             }
@@ -241,10 +258,10 @@ impl<DB: Database> Database for State<DB> {
         res
     }
 
-    fn storage(&mut self, address: Address, index: U256) -> Result<U256, Self::Error> {
+    fn db_storage(&self, address: Address, index: U256) -> Result<U256, DB::Error> {
         // Account is guaranteed to be loaded.
         // Note that storage from bundle is already loaded with account.
-        if let Some(account) = self.cache.accounts.get_mut(&address) {
+        if let Some(mut account) = self.cache.accounts.get_mut(&address) {
             // account will always be some, but if it is not, U256::ZERO will be returned.
             let is_storage_known = account.status.is_storage_known();
             Ok(account
@@ -258,7 +275,7 @@ impl<DB: Database> Database for State<DB> {
                         let value = if is_storage_known {
                             U256::ZERO
                         } else {
-                            self.database.storage(address, index)?
+                            self.database.storage_ref(address, index)?
                         };
                         entry.insert(value);
                         Ok(value)
@@ -271,29 +288,58 @@ impl<DB: Database> Database for State<DB> {
         }
     }
 
-    fn block_hash(&mut self, number: u64) -> Result<B256, Self::Error> {
+    fn db_block_hash(&self, number: u64) -> Result<B256, DB::Error> {
         match self.block_hashes.entry(number) {
-            btree_map::Entry::Occupied(entry) => Ok(*entry.get()),
-            btree_map::Entry::Vacant(entry) => {
-                let ret = *entry.insert(self.database.block_hash(number)?);
-
-                // prune all hashes that are older then BLOCK_HASH_HISTORY
-                let last_block = number.saturating_sub(BLOCK_HASH_HISTORY);
-                while let Some(entry) = self.block_hashes.first_entry() {
-                    if *entry.key() < last_block {
-                        entry.remove();
-                    } else {
-                        break;
-                    }
-                }
-
+            Entry::Occupied(entry) => Ok(*entry.get()),
+            Entry::Vacant(entry) => {
+                let ret = *entry.insert(self.database.block_hash_ref(number)?);
                 Ok(ret)
             }
         }
     }
 }
 
-impl<DB: Database> DatabaseCommit for State<DB> {
+impl<DB: DatabaseRef> Database for State<DB> {
+    type Error = DB::Error;
+
+    fn basic(&mut self, address: Address) -> Result<Option<AccountInfo>, Self::Error> {
+        self.db_basic(address)
+    }
+
+    fn code_by_hash(&mut self, code_hash: B256) -> Result<Bytecode, Self::Error> {
+        self.db_code_by_hash(code_hash)
+    }
+
+    fn storage(&mut self, address: Address, index: U256) -> Result<U256, Self::Error> {
+        self.db_storage(address, index)
+    }
+
+    fn block_hash(&mut self, number: u64) -> Result<B256, Self::Error> {
+        self.db_block_hash(number)
+    }
+}
+
+impl<DB: DatabaseRef> DatabaseRef for State<DB> {
+    type Error = DB::Error;
+
+    fn basic_ref(&self, address: Address) -> Result<Option<AccountInfo>, Self::Error> {
+        self.db_basic(address)
+    }
+
+    fn code_by_hash_ref(&self, code_hash: B256) -> Result<Bytecode, Self::Error> {
+        self.db_code_by_hash(code_hash)
+    }
+
+    fn storage_ref(&self, address: Address, index: U256) -> Result<U256, Self::Error> {
+        self.db_storage(address, index)
+    }
+
+    fn block_hash_ref(&self, number: u64) -> Result<B256, Self::Error> {
+        self.db_block_hash(number)
+    }
+}
+
+impl<DB: DatabaseRef> DatabaseCommit for State<DB> {
     fn commit(&mut self, evm_state: HashMap<Address, Account>) {
         let transitions = self.cache.apply_evm_state(evm_state);
         self.apply_transition(transitions);
@@ -307,31 +353,6 @@ mod tests {
         states::{reverts::AccountInfoRevert, StorageSlot},
         AccountRevert, AccountStatus, BundleAccount, RevertToSlot,
     };
-    use revm_interpreter::primitives::keccak256;
-
-    #[test]
-    fn block_hash_cache() {
-        let mut state = State::builder().build();
-        state.block_hash(1u64).unwrap();
-        state.block_hash(2u64).unwrap();
-
-        let test_number = BLOCK_HASH_HISTORY + 2;
-
-        let block1_hash = keccak256(U256::from(1).to_string().as_bytes());
-        let block2_hash = keccak256(U256::from(2).to_string().as_bytes());
-        let block_test_hash = keccak256(U256::from(test_number).to_string().as_bytes());
-
-        assert_eq!(
-            state.block_hashes,
-            BTreeMap::from([(1, block1_hash), (2, block2_hash)])
-        );
-
-        state.block_hash(test_number).unwrap();
-        assert_eq!(
-            state.block_hashes,
-            BTreeMap::from([(test_number, block_test_hash), (2, block2_hash)])
-        );
-    }
 
     /// Checks that if accounts is touched multiple times in the same block,
     /// then the old values from the first change are preserved and not overwritten.
