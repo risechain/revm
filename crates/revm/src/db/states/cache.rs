@@ -1,6 +1,7 @@
 use super::{
     plain_account::PlainStorage, transition_account::TransitionAccount, CacheAccount, PlainAccount,
 };
+use dashmap::DashMap;
 use revm_interpreter::primitives::{
     Account, AccountInfo, Address, Bytecode, EvmState, HashMap, B256,
 };
@@ -12,13 +13,13 @@ use std::vec::Vec;
 /// It loads all accounts from database and applies revm output to it.
 ///
 /// It generates transitions that is used to build BundleState.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug)]
 pub struct CacheState {
     /// Block state account with account state.
-    pub accounts: HashMap<Address, CacheAccount>,
+    pub accounts: DashMap<Address, CacheAccount>,
     /// Created contracts.
     // TODO add bytecode counter for number of bytecodes added/removed.
-    pub contracts: HashMap<B256, Bytecode>,
+    pub contracts: DashMap<B256, Bytecode>,
     /// Has EIP-161 state clear enabled (Spurious Dragon hardfork).
     pub has_state_clear: bool,
 }
@@ -33,8 +34,8 @@ impl CacheState {
     /// New default state.
     pub fn new(has_state_clear: bool) -> Self {
         Self {
-            accounts: HashMap::default(),
-            contracts: HashMap::default(),
+            accounts: DashMap::default(),
+            contracts: DashMap::default(),
             has_state_clear,
         }
     }
@@ -48,12 +49,13 @@ impl CacheState {
     ///
     /// Used inside tests to generate merkle tree.
     pub fn trie_account(&self) -> impl IntoIterator<Item = (Address, &PlainAccount)> {
-        self.accounts.iter().filter_map(|(address, account)| {
-            account
-                .account
-                .as_ref()
-                .map(|plain_acc| (*address, plain_acc))
-        })
+        vec![]
+        // self.accounts.iter().filter_map(|(address, account)| {
+        //     account
+        //         .account
+        //         .as_ref()
+        //         .map(|plain_acc| (*address, plain_acc))
+        // })
     }
 
     /// Insert not existing account.
@@ -100,17 +102,13 @@ impl CacheState {
 
     /// Apply updated account state to the cached account.
     /// Returns account transition if applicable.
-    fn apply_account_state(
-        &mut self,
-        address: Address,
-        account: Account,
-    ) -> Option<TransitionAccount> {
+    fn apply_account_state(&self, address: Address, account: Account) -> Option<TransitionAccount> {
         // not touched account are never changed.
         if !account.is_touched() {
             return None;
         }
 
-        let this_account = self
+        let mut this_account = self
             .accounts
             .get_mut(&address)
             .expect("All accounts should be present inside cache");
@@ -141,6 +139,9 @@ impl CacheState {
         // by just setting storage inside CRATE constructor. Overlap of those contracts
         // is not possible because CREATE2 is introduced later.
         if is_created {
+            self.contracts
+                .entry(account.info.code_hash)
+                .or_insert_with(|| account.info.code.clone().unwrap());
             return Some(this_account.newly_created(account.info, changed_storage));
         }
 
