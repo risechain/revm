@@ -3,13 +3,13 @@
 use crate::{
     handler::{
         mainnet::{self, deduct_caller_inner},
-        register::EvmHandler,
+        register::{EvmHandler, HandleRegisters},
     },
     interpreter::{return_ok, return_revert, Gas, InstructionResult},
     optimism,
     primitives::{
         db::Database, spec_to_generic, Account, EVMError, Env, ExecutionResult, HaltReason,
-        HashMap, InvalidTransaction, ResultAndState, Spec, SpecId, SpecId::REGOLITH, U256,
+        HashMap, InvalidTransaction, ResultAndState, Spec, SpecId, U256,
     },
     Context, ContextPrecompiles, FrameResult,
 };
@@ -18,25 +18,34 @@ use revm_precompile::{secp256r1, PrecompileSpecId};
 use std::string::ToString;
 use std::sync::Arc;
 
-pub fn optimism_handle_register<DB: Database, EXT>(handler: &mut EvmHandler<'_, EXT, DB>) {
-    spec_to_generic!(handler.cfg.spec_id, {
-        // validate environment
-        handler.validation.env = Arc::new(validate_env::<SPEC, DB>);
-        // Validate transaction against state.
-        handler.validation.tx_against_state = Arc::new(validate_tx_against_state::<SPEC, EXT, DB>);
-        // Load additional precompiles for the given chain spec.
-        handler.pre_execution.load_precompiles = Arc::new(load_precompiles::<SPEC, EXT, DB>);
-        // load l1 data
-        handler.pre_execution.load_accounts = Arc::new(load_accounts::<SPEC, EXT, DB>);
-        // An estimated batch cost is charged from the caller and added to L1 Fee Vault.
-        handler.pre_execution.deduct_caller = Arc::new(deduct_caller::<SPEC, EXT, DB>);
-        // Refund is calculated differently then mainnet.
-        handler.execution.last_frame_return = Arc::new(last_frame_return::<SPEC, EXT, DB>);
-        handler.post_execution.reward_beneficiary = Arc::new(reward_beneficiary::<SPEC, EXT, DB>);
-        // In case of halt of deposit transaction return Error.
-        handler.post_execution.output = Arc::new(output::<SPEC, EXT, DB>);
-        handler.post_execution.end = Arc::new(end::<SPEC, EXT, DB>);
-    });
+pub fn optimism_handle_register<DB: Database, EXT>(
+    with_reward_beneficiary: bool,
+) -> HandleRegisters<EXT, DB> {
+    HandleRegisters::Box(Box::new(move |handler: &mut EvmHandler<'_, EXT, DB>| {
+        spec_to_generic!(handler.cfg.spec_id, {
+            // validate environment
+            handler.validation.env = Arc::new(validate_env::<SPEC, DB>);
+            // Validate transaction against state.
+            handler.validation.tx_against_state =
+                Arc::new(validate_tx_against_state::<SPEC, EXT, DB>);
+            // Load additional precompiles for the given chain spec.
+            handler.pre_execution.load_precompiles = Arc::new(load_precompiles::<SPEC, EXT, DB>);
+            // load l1 data
+            handler.pre_execution.load_accounts = Arc::new(load_accounts::<SPEC, EXT, DB>);
+            // An estimated batch cost is charged from the caller and added to L1 Fee Vault.
+            handler.pre_execution.deduct_caller = Arc::new(deduct_caller::<SPEC, EXT, DB>);
+            // Refund is calculated differently then mainnet.
+            handler.execution.last_frame_return = Arc::new(last_frame_return::<SPEC, EXT, DB>);
+            handler.post_execution.reward_beneficiary = if with_reward_beneficiary {
+                Some(Box::new(reward_beneficiary::<SPEC, EXT, DB>))
+            } else {
+                None
+            };
+            // In case of halt of deposit transaction return Error.
+            handler.post_execution.output = Box::new(output::<SPEC, EXT, DB>);
+            handler.post_execution.end = Box::new(end::<SPEC, EXT, DB>);
+        });
+    }))
 }
 
 /// Validate environment for the Optimism chain.
@@ -78,7 +87,7 @@ pub fn last_frame_return<SPEC: Spec, EXT, DB: Database>(
     let is_deposit = env.tx.optimism.source_hash.is_some();
     let tx_system = env.tx.optimism.is_system_transaction;
     let tx_gas_limit = env.tx.gas_limit;
-    let is_regolith = SPEC::enabled(REGOLITH);
+    let is_regolith = SPEC::enabled(SpecId::REGOLITH);
 
     let instruction_result = frame_result.interpreter_result().result;
     let gas = frame_result.gas_mut();
@@ -297,7 +306,7 @@ pub fn output<SPEC: Spec, EXT, DB: Database>(
         // we bubble up to the global return handler. The mint value will be persisted
         // and the caller nonce will be incremented there.
         let is_deposit = context.evm.inner.env.tx.optimism.source_hash.is_some();
-        if is_deposit && SPEC::enabled(REGOLITH) {
+        if is_deposit && SPEC::enabled(SpecId::REGOLITH) {
             return Err(EVMError::Transaction(
                 InvalidTransaction::HaltedDepositPostRegolith,
             ));
@@ -355,7 +364,7 @@ pub fn end<SPEC: Spec, EXT, DB: Database>(
                 .optimism
                 .is_system_transaction
                 .unwrap_or(false);
-            let gas_used = if SPEC::enabled(REGOLITH) || !is_system_tx {
+            let gas_used = if SPEC::enabled(SpecId::REGOLITH) || !is_system_tx {
                 context.evm.inner.env().tx.gas_limit
             } else {
                 0
