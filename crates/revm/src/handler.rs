@@ -47,9 +47,9 @@ impl<'a, EXT, DB: Database> EvmHandler<'a, EXT, DB> {
         cfg_if::cfg_if! {
             if #[cfg(feature = "optimism")] {
                 if cfg.is_optimism {
-                    Handler::optimism_with_spec(cfg.spec_id)
+                    Handler::optimism_with_spec(cfg.spec_id, true)
                 } else {
-                    Handler::mainnet_with_spec(cfg.spec_id)
+                    Handler::mainnet_with_spec(cfg.spec_id, true)
                 }
             } else {
                 Handler::mainnet_with_spec(cfg.spec_id, true)
@@ -77,19 +77,19 @@ impl<'a, EXT, DB: Database> EvmHandler<'a, EXT, DB> {
 
     /// Handler for optimism
     #[cfg(feature = "optimism")]
-    pub fn optimism<SPEC: Spec>() -> Self {
-        let mut handler = Self::mainnet::<SPEC>();
+    pub fn optimism<SPEC: Spec>(with_reward_beneficiary: bool) -> Self {
+        let mut handler = Self::mainnet::<SPEC>(with_reward_beneficiary);
         handler.cfg.is_optimism = true;
-        handler.append_handler_register(HandleRegisters::Plain(
-            crate::optimism::optimism_handle_register::<DB, EXT>,
+        handler.append_handler_register(crate::optimism::optimism_handle_register::<DB, EXT>(
+            with_reward_beneficiary,
         ));
         handler
     }
 
     /// Optimism with spec. Similar to [`Self::mainnet_with_spec`].
     #[cfg(feature = "optimism")]
-    pub fn optimism_with_spec(spec_id: SpecId) -> Self {
-        spec_to_generic!(spec_id, Self::optimism::<SPEC>())
+    pub fn optimism_with_spec(spec_id: SpecId, with_reward_beneficiary: bool) -> Self {
+        spec_to_generic!(spec_id, Self::optimism::<SPEC>(with_reward_beneficiary))
     }
 
     /// Creates handler with variable spec id, inside it will call `mainnet::<SPEC>` for

@@ -159,7 +159,7 @@ impl<T: Transport + Clone, N: Network, P: Provider<T, N>> Database for AlloyDB<T
     type Error = TransportError;
 
     #[inline]
-    fn basic(&mut self, address: Address, _: bool) -> Result<Option<AccountInfo>, Self::Error> {
+    fn basic(&mut self, address: Address) -> Result<Option<AccountInfo>, Self::Error> {
         <Self as DatabaseRef>::basic_ref(self, address)
     }
 
