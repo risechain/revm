@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.1](https://github.com/risechain/revm/compare/revme-v0.9.0...revme-v0.9.1) - 2024-08-24
+
+### Fixed
+- *(statetest)* delay parsing value
+
 ## [0.9.0](https://github.com/bluealloy/revm/compare/revme-v0.8.0...revme-v0.9.0) - 2024-08-08
 
 ### Added

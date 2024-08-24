@@ -6,6 +6,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [13.1.0](https://github.com/risechain/revm/compare/revm-v13.0.0...revm-v13.1.0) - 2024-08-24
+
+### Added
+- support eip-7610
+
+### Other
+- replace post_executions arcs with boxes
+- option to turn off post_execution.reward_beneficiary
+
 ## [12.2.0](https://github.com/bluealloy/revm/compare/revm-v12.1.0...revm-v12.2.0) - 2024-08-08
 
 ### Added

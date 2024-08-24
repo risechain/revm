@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.0.1](https://github.com/risechain/revm/compare/revm-interpreter-v9.0.0...revm-interpreter-v9.0.1) - 2024-08-24
+
+### Other
+- updated the following local packages: revm-primitives
+
 ## [9.0.0](https://github.com/bluealloy/revm/compare/revm-interpreter-v8.1.0...revm-interpreter-v9.0.0) - 2024-08-08
 
 ### Added
