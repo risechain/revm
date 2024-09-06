@@ -320,10 +320,17 @@ impl<DB: Database> EvmContext<DB> {
         // warm load account.
         self.load_account(created_address)?;
 
+        // This only check with the pre-execution state. Can storage be cleared after load?
+        let address_has_storage = self
+            .db
+            .has_storage(created_address)
+            .map_err(EVMError::Database)?;
+
         // create account, transfer funds and make the journal checkpoint.
         let checkpoint = match self.journaled_state.create_account_checkpoint(
             inputs.caller,
             created_address,
+            address_has_storage,
             inputs.value,
             spec_id,
         ) {
@@ -432,10 +439,17 @@ impl<DB: Database> EvmContext<DB> {
         // Load account so it needs to be marked as warm for access list.
         self.load_account(created_address)?;
 
+        // This only check with the pre-execution state. Can storage be cleared after load?
+        let address_has_storage = self
+            .db
+            .has_storage(created_address)
+            .map_err(EVMError::Database)?;
+
         // create account, transfer funds and make the journal checkpoint.
         let checkpoint = match self.journaled_state.create_account_checkpoint(
             inputs.caller,
             created_address,
+            address_has_storage,
             inputs.value,
             spec_id,
         ) {
