@@ -18,6 +18,14 @@ pub trait Database {
     /// Get account code by its hash.
     fn code_by_hash(&mut self, code_hash: B256) -> Result<Bytecode, Self::Error>;
 
+    /// Get if the account already has storage (to support EIP-7610)
+    fn has_storage(&mut self, _address: Address) -> Result<bool, Self::Error> {
+        // This is a good default value (no storage for collision) as only a hash collision
+        // could trigger EIP-7610. A proper implementation can check the account's storage
+        // hash, etc.
+        Ok(false)
+    }
+
     /// Get storage value of address at index.
     fn storage(&mut self, address: Address, index: U256) -> Result<U256, Self::Error>;
 
@@ -49,6 +57,14 @@ pub trait DatabaseRef {
     /// Get account code by its hash.
     fn code_by_hash_ref(&self, code_hash: B256) -> Result<Bytecode, Self::Error>;
 
+    /// Get if the account already has storage (to support EIP-7610)
+    fn has_storage_ref(&self, _address: Address) -> Result<bool, Self::Error> {
+        // This is a good default value (no storage for collision) as only a hash collision
+        // could trigger EIP-7610. A proper implementation can check the account's storage
+        // hash, etc.
+        Ok(false)
+    }
+
     /// Get storage value of address at index.
     fn storage_ref(&self, address: Address, index: U256) -> Result<U256, Self::Error>;
 
@@ -78,6 +94,11 @@ impl<T: DatabaseRef> Database for WrapDatabaseRef<T> {
     #[inline]
     fn code_by_hash(&mut self, code_hash: B256) -> Result<Bytecode, Self::Error> {
         self.0.code_by_hash_ref(code_hash)
+    }
+
+    #[inline]
+    fn has_storage(&mut self, address: Address) -> Result<bool, Self::Error> {
+        self.0.has_storage_ref(address)
     }
 
     #[inline]
