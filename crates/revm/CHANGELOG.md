@@ -6,6 +6,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [15.0.0](https://github.com/risechain/revm/compare/revm-v14.0.1...revm-v15.0.0) - 2024-09-06
+
+### Added
+- support eip-7610
+
+### Other
+- option to turn off post_execution.reward_beneficiary
+- replace post_executions arcs with boxes
+- *(deps)* bump tokio from 1.39.2 to 1.40.0 ([#1739](https://github.com/risechain/revm/pull/1739))
+
 ## [14.0.1](https://github.com/bluealloy/revm/compare/revm-v14.0.0...revm-v14.0.1) - 2024-08-30
 
 ### Other
