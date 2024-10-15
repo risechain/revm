@@ -6,7 +6,10 @@ use deserializer::*;
 pub use eip7702::TxEip7702;
 pub use spec::SpecName;
 
-use revm::primitives::{AccessList, Address, AuthorizationList, Bytes, HashMap, B256, U256};
+use revm::primitives::{
+    alloy_primitives::Parity, AccessList, Address, Authorization, AuthorizationList, Bytes,
+    HashMap, RecoveredAuthorization, Signature, B256, U256,
+};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
@@ -128,22 +131,45 @@ pub struct TransactionParts {
     #[serde(default)]
     pub access_lists: Vec<Option<AccessList>>,
     #[serde(default)]
-    pub authorization_list: Vec<Authorization>,
+    pub authorization_list: Option<Vec<TestAuthorization>>,
     #[serde(default)]
     pub blob_versioned_hashes: Vec<B256>,
     pub max_fee_per_blob_gas: Option<U256>,
 }
 
-#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct Authorization {
-    chain_id: U256,
+pub struct TestAuthorization {
+    chain_id: u64,
     address: Address,
     nonce: U256,
     v: U256,
     r: U256,
     s: U256,
     signer: Option<Address>,
+}
+
+impl TestAuthorization {
+    pub fn signature(&self) -> Signature {
+        let v = u64::try_from(self.v).unwrap_or(u64::MAX);
+        let parity = Parity::try_from(v).unwrap_or(Parity::Eip155(36));
+        Signature::from_rs_and_parity(self.r, self.s, parity).unwrap()
+    }
+    pub fn into_recovered(self) -> RecoveredAuthorization {
+        let authorization = Authorization {
+            chain_id: self.chain_id,
+            address: self.address,
+            nonce: u64::try_from(self.nonce).unwrap(),
+        };
+        let authority = self
+            .signature()
+            .recover_address_from_prehash(&authorization.signature_hash())
+            .ok();
+        RecoveredAuthorization::new_unchecked(
+            authorization.into_signed(self.signature()),
+            authority,
+        )
+    }
 }
 
 #[cfg(test)]
