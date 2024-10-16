@@ -6,6 +6,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [10.1.0](https://github.com/risechain/revm/compare/revm-primitives-v10.0.0...revm-primitives-v10.1.0) - 2024-10-16
+
+### Added
+
+- support eip-7610
+- make Bytecode fields pub
+
 ## [10.0.1](https://github.com/bluealloy/revm/compare/revm-primitives-v10.0.0...revm-primitives-v10.0.1) - 2024-09-26
 
 ### Other
