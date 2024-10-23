@@ -78,7 +78,7 @@ impl<'a, EXT, DB: Database> EvmHandler<'a, EXT, DB> {
     /// Handler for optimism
     #[cfg(feature = "optimism")]
     pub fn optimism<SPEC: Spec>(with_reward_beneficiary: bool) -> Self {
-        let mut handler = Self::mainnet::<SPEC>(true);
+        let mut handler = Self::mainnet::<SPEC>(with_reward_beneficiary);
         handler.cfg.is_optimism = true;
         handler.append_handler_register(HandleRegisters::Box(
             crate::optimism::optimism_handle_register::<DB, EXT>(with_reward_beneficiary),
