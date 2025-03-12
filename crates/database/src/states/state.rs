@@ -834,7 +834,10 @@ mod tests {
         state.commit(HashMap::from_iter([(contract_address, contract_account)]));
         // End the first block.
         state.merge_transitions(BundleRetention::Reverts);
+        // you could just clear CachesState and this would work.
         let bundle = state.take_bundle();
+        // On previous example you could do bundle_block1.extend(bundle_block2) and this would work.
+        // as change from block 1 is in bundle of block1.
         let contract_bundle_account = bundle.state.get(&contract_address).unwrap();
         // Expected: The output `BundleAccount` only has the first slot.
         assert!(contract_bundle_account.storage.len() == 1);
@@ -843,6 +846,14 @@ mod tests {
             Some(first_block_slot_value.present_value)
         );
         // End of block 1.
+
+        // reuse previous bundle state and clear CacheState
+        let mut state = State::builder()
+            .with_bundle_update()
+            .with_bundle_prestate(bundle)
+            .with_bundle_update()
+            .build();
+        state.load_cache_account(contract_address).unwrap();
 
         // Block 2: Write a new slot to the contract
         let second_block_slot_key = U256::from(2);
@@ -861,13 +872,21 @@ mod tests {
         let bundle = state.take_bundle();
         let contract_bundle_account = bundle.state.get(&contract_address).unwrap();
         // Expected: The `BundleAccount` only has the new slot
-        assert!(contract_bundle_account.storage.len() == 1);
+        //assert!(contract_bundle_account.storage.len() == 1);
+        // bundle state has two storages.
+        assert_eq!(contract_bundle_account.storage.len(), 2);
         assert_eq!(
             contract_bundle_account.storage_slot(second_block_slot_key),
             Some(second_block_slot_value.present_value)
         );
-        // Unexpected: The `BundleAccount` is `InMemoryChange` even when it doesn't have the first slot.
-        assert_ne!(
+        // // Unexpected: The `BundleAccount` is `InMemoryChange` even when it doesn't have the first slot.
+        // assert_ne!(
+        //     contract_bundle_account.status,
+        //     AccountStatus::InMemoryChange
+        // );
+        // Bundle state contains all changed state, it should be `InMemoryChange`.
+        // This is correct to have `InMemoryChane` status as `BundleState` has full storage.
+        assert_eq!(
             contract_bundle_account.status,
             AccountStatus::InMemoryChange
         );
@@ -876,7 +895,7 @@ mod tests {
         // the underlying database.
         assert_eq!(
             contract_bundle_account.storage_slot(first_block_slot_key),
-            None
+            Some(U256::from(1))
         );
     }
 }
